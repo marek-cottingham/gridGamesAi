@@ -17,7 +17,6 @@ class Pentago_TD_model(tf.keras.Model):
         self.minimaxAgent = PruningAgent
         self.gameStateFromTensor = PentagoGameState.fromTensor
         self.bootstrapScoringAgent: AbstractScoringAgent = bootstrapScoringAgent
-        self.bootstrapMode = False
         self.maxTDsteps = 7
 
         super().__init__(*args, **kwargs)
@@ -29,24 +28,9 @@ class Pentago_TD_model(tf.keras.Model):
         return self.__call__(gameState.asTensor()[None, :]).numpy()[0,0]
 
     def train_step(self, gameStateTensor: tf.Tensor):
-        if self.bootstrapMode:
-            return self.train_bootstrap_from_tensor(gameStateTensor)
-        else:
-            gameState = self.gameStateFromTensor(gameStateTensor)
-            return self.train_td_from_game(gameState)
+        gameState = self.gameStateFromTensor(gameStateTensor)
+        return self.train_td_from_game(gameState)
 
-    def train_bootstrap_from_tensor(self, tensor: tf.Tensor):
-        x = tensor
-        y = tf.constant([
-            self.bootstrapScoringAgent.score(self.gameStateFromTensor(tensor))
-        ])
-        with tf.GradientTape() as tape:
-            y_pred = self(x[None, :], training=True)
-            loss = self.compute_loss(x, y, y_pred)
-        self._validate_target_and_loss(y, loss)
-        # Run backwards pass.
-        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        return self.compute_metrics(x, y, y_pred, None)
 
     def train_td_from_game(self, rootGameState: AbstractGameState):
 
@@ -64,24 +48,6 @@ class Pentago_TD_model(tf.keras.Model):
         scores = np.array([self.score(gameState) for gameState in movesSequence])
         deltas = scores[1:] - scores[:-1]
 
-
-        gradients = []
-
-        for tensor in gameStateTensors:
-            with tf.GradientTape() as tape:
-                tfModelScore = self.__call__(tensor[None, :])
-            gradients.append(
-                tape.gradient(tfModelScore, self.trainable_variables)
-            )
-
-        delta_trainable = self.td_gradient_list(deltas, gradients)
-
-        self.optimizer.apply_gradients(zip(delta_trainable, self.trainable_variables))
-
-        self.compute_loss(None, tf.constant([scores[0]]), tf.constant([scores[-1]]))
-
-        return self.compute_metrics(gameStateTensors[0], scores[-1], scores[0], None)
-
     
 
 class TD_model(tf.keras.Model):
@@ -90,8 +56,11 @@ class TD_model(tf.keras.Model):
         super().__init__(*args, **kwargs)
 
     def train_td_from_sequential_states(self, tensor_states: List[tf.Tensor], scores: np.ndarray):
-        # Expect arguments where:
-        # len(tensor_states) = len(scores)
+        """Trains the tensor model from a series of tensor_states and their know score (using
+        the latest verion of the model).
+        Expects: 
+            len(tensor_states) = len(scores)
+        """
         deltas = scores[1:] - scores[:-1]
         gradients = []
         for tensor in tensor_states[:-1]:
@@ -100,37 +69,46 @@ class TD_model(tf.keras.Model):
             gradients.append(
                 tape.gradient(tfModelScore, self.trainable_variables)
             )
-        delta_trainable = self.td_gradient_list(deltas, gradients)
+        delta_trainable = self.get_update_as_weighted_sum_gradients(deltas, gradients)
         self.optimizer.apply_gradients(zip(delta_trainable, self.trainable_variables))
 
 
-    def td_gradient_list(self, deltas: np.ndarray, gradientsList: List[List[tf.Tensor]]):
-        # Expect arguments of form:
-        # deltas[x]
-        # gradientsList[y][x]
-        # 0 < x <= X
-        # 0 < y <= Y
+    def get_update_as_weighted_sum_gradients(
+        self, deltas: np.ndarray, gradientsList: List[List[tf.Tensor]]
+    ) -> List[tf.Tensor]:
+        """Given the change in the score for a series of moves and the gradients of the scores of the
+        positions prior to the moves, returns a list of tensor of updates to the model weights and 
+        biases.
+        Expect arguments of form:
+            deltas[x]
+            gradientsList[y][x]
+            0 < x <= X
+            0 < y <= Y
+        """
         gradientsZip = zip(*gradientsList)
-        dw = [self.weight_gradients_by_temporal_difference(deltas, g) for g in gradientsZip]
+        weights = self.generate_temporal_difference_weights(deltas)
+        dw = [self.weigh_gradients_by_temporal_difference(weights, g) for g in gradientsZip]
         return dw
 
-    def generate_temporal_difference_weights(self, deltas: np.ndarray):
-        powers = np.arange(deltas.size)[::-1]
+    def generate_temporal_difference_weights(self, deltas: np.ndarray) -> np.ndarray:
+        """Generates weights for the gradient at each time step"""
+        powers = np.arange(deltas.size)
         per_step_weights = np.power(self.td_factor, powers)
-        per_delta_weights = np.cumsum(per_step_weights)
+        per_delta_weights = np.cumsum(per_step_weights)[::-1]
         return deltas * per_delta_weights
 
-    def weight_gradients_by_temporal_difference(self, deltas: List[int], gradients: List[tf.Tensor]):
-        # len(deltas) == len(gradients)
-        td_factor = 0.7
+    def weigh_gradients_by_temporal_difference(
+        self, weights: np.ndarray, gradients: List[tf.Tensor]
+    ) -> tf.Tensor:
+        """Applies a weight to each gradient, where the gradients are for position evaluation at
+        subsequent time steps.
+        
+        Expects: len(deltas) == len(gradients)
+        """
         dw_init = tf.zeros(gradients[0].shape)
         dw = tf.Variable(dw_init, trainable=False)
-        trace = tf.Variable(0.0, trainable=False)
 
-        M = len(deltas)
+        M = len(weights)
         for t in range(M):
-            trace.assign(tf.constant(0.0))
-            for j in range(t, M):
-                trace.assign_add( td_factor**(j-t) * deltas[t] )
-            dw.assign_add(trace * gradients[t])
+            dw.assign_add(weights[t] * gradients[t])
         return dw
