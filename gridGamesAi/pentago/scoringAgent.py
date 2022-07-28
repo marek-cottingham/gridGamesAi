@@ -17,3 +17,7 @@ class PentagoNaiveScoringAgent(AbstractScoringAgent):
         grid_0_occupancy = _gridOccupancy(gameState.grid_0)
         grid_1_occupancy = _gridOccupancy(gameState.grid_1)
         return np.sum(grid_0_occupancy**2) - np.sum(grid_1_occupancy**2)
+
+    @property
+    def hasCachingFacility(self) -> bool:
+        return False

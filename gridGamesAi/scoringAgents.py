@@ -11,8 +11,11 @@ class AbstractScoringAgent(ABC):
     @abstractmethod
     def score(self,gameState: AbstractGameState) -> float: pass
 
-    # @abstractproperty
-    # def hasCachingFacility(self) -> bool: pass
+    @abstractproperty
+    def hasCachingFacility(self) -> bool: pass
+
+class CachingScoringAgent(ABC):
+    pass
 
 def sortNextMovesAscendingWithScoringAgent(
     gameState: AbstractGameState, agent: AbstractScoringAgent

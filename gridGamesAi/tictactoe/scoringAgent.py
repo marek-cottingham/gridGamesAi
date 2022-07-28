@@ -11,3 +11,7 @@ class TicTacToeManualScoringAgent(AbstractScoringAgent):
         gameState.grid_0[2][0] + gameState.grid_0[2][2]
         - gameState.grid_1[1][1]
     )
+
+    @property
+    def hasCachingFacility(self) -> bool:
+        return False
