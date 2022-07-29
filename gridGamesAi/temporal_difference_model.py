@@ -1,3 +1,5 @@
+from functools import cache
+from pathlib import Path
 from typing import List
 import tensorflow as tf
 import numpy as np
@@ -6,50 +8,81 @@ from gridGamesAi.game import Game
 from gridGamesAi.minimax import PruningAgent
 from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.scoringAgent import PentagoNaiveScoringAgent
-from gridGamesAi.scoringAgents import AbstractScoringAgent
+from gridGamesAi.scoringAgents import AbstractScoringAgent, CachingScoringAgent
 
-class Pentago_TD_model(tf.keras.Model):
-    def __init__(self, 
-        *args,
-        bootstrapScoringAgent = PentagoNaiveScoringAgent(),
-        **kwargs
+class Pentago_TD_Agent(CachingScoringAgent):
+    def __init__(
+        self,
+        loadPath = None,
+        createNewModel = False
     ) -> None:
-        self.minimaxAgent = PruningAgent
-        self.gameStateFromTensor = PentagoGameState.fromTensor
-        self.bootstrapScoringAgent: AbstractScoringAgent = bootstrapScoringAgent
-        self.maxTDsteps = 7
+        self.minimaxAgent = PruningAgent(scoringAgent=self, max_depth=6)
+        self.td_model = None
+        self.isCompiled = False
 
-        super().__init__(*args, **kwargs)
+        if loadPath is not None:
+            self.load_td_model(loadPath)
+        if createNewModel:
+            self.create_td_model()
+        if self.td_model is not None:
+            self.compile_td_model()
 
-    def score(self, gameState: AbstractGridGameState):
+    def create_td_model(self):
+        inputs = tf.keras.Input(shape=(74,))
+        internal_1 = tf.keras.layers.Dense(100, activation='relu')
+        internal_2 = tf.keras.layers.Dense(100, activation='relu')
+        output = tf.keras.layers.Dense(1, activation='sigmoid')
+        self.td_model = TD_model(
+            inputs, 
+            output(internal_2(internal_1(inputs))), 
+        )
+
+    def load_td_model(self, path: Path):
+         self.td_model: TD_model = tf.keras.models.load_model(
+            path,
+            custom_objects={
+                "pentagoTD_model": TD_model,
+                "TD_model": TD_model,
+            }
+        )
+
+    def compile_td_model(self):
+        if self.td_model is None:
+            raise Exception("Must create or load a TD model before compiling")
+        self.td_model.compile(
+            loss=tf.keras.losses.MeanSquaredError(), 
+            metrics=[],
+            run_eagerly=True
+        )
+        self.isCompiled = True
+
+    def requireComplied(self):
+        if self.td_model is None:
+            raise Exception("Must create or load a TD model")
+        if not self.isCompiled:
+            raise Exception("Must compile the TD model")
+
+    @cache
+    def score(self, gameState: PentagoGameState) -> float:
         return baseScoreStrategy(gameState, self._score)
 
-    def _score(self, gameState: AbstractGridGameState):
-        return self.__call__(gameState.asTensor()[None, :]).numpy()[0,0]
+    def _score(self, gameState: PentagoGameState):
+        return self.td_model.__call__(gameState.asTensor()[None, :]).numpy()[0,0]
 
-    def train_step(self, gameStateTensor: tf.Tensor):
-        gameState = self.gameStateFromTensor(gameStateTensor)
-        return self.train_td_from_game(gameState)
+    def resetCache(self):
+        self.score.cache_clear()
 
+    def train_td_from_game(self, rootGameState: PentagoGameState):
 
-    def train_td_from_game(self, rootGameState: AbstractGameState):
-
-        movesSequence: List[AbstractGameState] = [rootGameState]
-
-        for i in range(self.maxTDsteps):
+        movesSequence: List[PentagoGameState] = [rootGameState]
+        while not movesSequence[-1].isEnd:
             movesSequence.append(self.minimaxAgent.move(movesSequence[-1]))
-            if movesSequence[-1].isEnd:
-                break
-        
         gameStateTensors = [
-            gameState.asTensor() for gameState in movesSequence[:-1]
+            gameState.asTensor() for gameState in movesSequence
         ]
-
         scores = np.array([self.score(gameState) for gameState in movesSequence])
-        deltas = scores[1:] - scores[:-1]
-
-    
-
+        self.td_model.train_td_from_sequential_states(gameStateTensors, scores)
+        self.resetCache()
 class TD_model(tf.keras.Model):
     def __init__(self, *args, td_factor = 0.7, **kwargs) -> None:
         self.td_factor = td_factor
