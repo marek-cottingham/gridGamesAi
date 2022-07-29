@@ -1,15 +1,16 @@
 
 from typing import List, Tuple
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import numpy.testing as np_test
 
 from gridGamesAi.pentago.gameState import _gridOccupancy, PentagoGameState
 from gridGamesAi.pentago.scoringAgent import PentagoNaiveScoringAgent
+from tests.patchInspector import PatchInspector
 
-class pentagoGameStateTestCase(unittest.TestCase):
-    def prep_game(self, 
+def prep_game( 
         placeIndexes: List[Tuple[int, int]], 
         endAtTurnStep0: bool = True
     ) -> PentagoGameState:
@@ -21,6 +22,8 @@ class pentagoGameStateTestCase(unittest.TestCase):
         if endAtTurnStep0:
             gs = gs.skipRotation()
         return gs
+
+class pentagoGameStateTestCase(unittest.TestCase):
 
     def test_finding_grid_occupacy(self):
         grid = np.zeros((6,6))
@@ -50,10 +53,10 @@ class pentagoGameStateTestCase(unittest.TestCase):
         self.assertFalse(gs.isDraw)
 
     def test_isValidKey(self):
-        gs = self.prep_game([(2,2), (3,1), (3,2), (5,2)])
-        gs2 = self.prep_game([(2,2), (3,1), (3,2), (5,2)])
-        gs3 = self.prep_game([(2,2), (3,1), (3,3), (5,2)])
-        gs4 = self.prep_game([(2,2), (3,1), (3,3), (5,2)], False)
+        gs = prep_game([(2,2), (3,1), (3,2), (5,2)])
+        gs2 = prep_game([(2,2), (3,1), (3,2), (5,2)])
+        gs3 = prep_game([(2,2), (3,1), (3,3), (5,2)])
+        gs4 = prep_game([(2,2), (3,1), (3,3), (5,2)], False)
         self.assertEqual(gs, gs2)
         self.assertEqual(hash(gs), hash(gs2))
         self.assertNotEqual(gs, gs3)
@@ -68,9 +71,9 @@ class pentagoGameStateTestCase(unittest.TestCase):
         
     def test_tensor_conversion(self):
         for gs in [
-            self.prep_game([(2,2), (3,1), (3,2), (5,2)]),
-            self.prep_game([(2,2), (3,1), (3,2), (5,2)], False),
-            self.prep_game([(2,2), (3,1), (3,2), (5,2), (4,3), (4,4), (5,1), (5,3)]),
+            prep_game([(2,2), (3,1), (3,2), (5,2)]),
+            prep_game([(2,2), (3,1), (3,2), (5,2)], False),
+            prep_game([(2,2), (3,1), (3,2), (5,2), (4,3), (4,4), (5,1), (5,3)]),
             PentagoGameState(),
         ]:
             gs: PentagoGameState = gs
@@ -83,7 +86,7 @@ class pentagoGameStateTestCase(unittest.TestCase):
             self.assertEqual(gs.turnTracker.total_moves, gs2.turnTracker.total_moves)
 
     def test_CenterMassFlip(self):
-        gs = self.prep_game([(2,2), (3,1), (3,2), (5,2)])
+        gs = prep_game([(2,2), (3,1), (3,2), (5,2)])
         
         flipedState = gs.flipCenterOfMassToUpperLeftBelowDiagonal()
 
@@ -97,18 +100,52 @@ class pentagoGameStateTestCase(unittest.TestCase):
         )
 
     def test_ValidPlacementCheck(self):
-        gs = self.prep_game([(2,2)])
+        gs = prep_game([(2,2)])
         gs.gridState.assert_unoccupied((1,2))
         self.assertRaises(ValueError, gs.gridState.assert_unoccupied, (2,2))
 
 class PentagoNaiveScoreTestCase(unittest.TestCase):
-    def test_NaiveScore_1(self):
+    def patchInspector_gridOccupancy(self):
+        return PatchInspector(
+                patch('gridGamesAi.pentago.scoringAgent._gridOccupancy'),
+                _gridOccupancy
+        )
+
+    def test_returnsCorrectScore(self):
+        agent = PentagoNaiveScoringAgent()
+
         gs = PentagoGameState()
         gs = gs.place((2,2))
-        score = PentagoNaiveScoringAgent().unsquished_score(gs)
+        score = agent.unsquished_score(gs)
         self.assertAlmostEqual(score, 7)
 
         gs = gs.skipRotation()
         gs = gs.place((0,0))
-        score = PentagoNaiveScoringAgent().unsquished_score(gs)
+        score = agent.unsquished_score(gs)
         self.assertAlmostEqual(score, 4)
+
+    def test_employsCaching(self):
+        agent = PentagoNaiveScoringAgent()
+        
+        with self.patchInspector_gridOccupancy() as mock_gridOccupancy:
+            
+            score = agent.unsquished_score(prep_game([(2,2)]))
+            score = agent.unsquished_score(prep_game([(2,2), (0,0)], False))
+            score = agent.unsquished_score(prep_game([(2,2), (0,0)], False))
+
+            # _gridOccupancy is called twice by unsquished_score.
+            # If 6 calls are made, then caching is not functioning.
+            mock_gridOccupancy.assertCalledTimes(4)
+
+    def test_cacheCanBeReset(self):
+        agent = PentagoNaiveScoringAgent()
+
+        self.assertTrue(agent.hasCachingFacility)
+
+        with self.patchInspector_gridOccupancy() as mock_gridOccupancy:
+
+            score = agent.unsquished_score(prep_game([(2,2)]))
+            agent.resetCache()
+            score = agent.unsquished_score(prep_game([(2,2)]))
+
+            mock_gridOccupancy.assertCalledTimes(4)
