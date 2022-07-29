@@ -113,7 +113,7 @@ class UserGridAgent(AbstractAgent):
 
     def _try_place_move(self, x, y):
         try:
-            self.nextGameState = self.inputGameState.placeMove((x,y))
+            self.nextGameState = self.inputGameState.place((x,y))
         except ValueError:
             self.rend.ax.set_title(f"Placement on position {x}, {y} is not a valid move")
 

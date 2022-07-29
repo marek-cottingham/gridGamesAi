@@ -83,7 +83,7 @@ class TicTacToeGameState(AbstractGridGameState):
         next_turn_tracker = self.turnTracker.getIncremented()
         return [TicTacToeGameState(next_turn_tracker, state) for state in next_grid_states]
 
-    def placeMove(self, index: Tuple[int, int]) -> TicTacToeGameState:
+    def place(self, index: Tuple[int, int]) -> TicTacToeGameState:
         self.gridState.assert_unoccupied(index)
         return TicTacToeGameState(
             self.turnTracker.getIncremented(),

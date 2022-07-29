@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cached_property
+from functools import cached_property, cache
 from typing import List, Tuple
 
 import numpy as np
 import tensorflow as tf
+import hashlib
 
 from ..turnTracker import TurnTracker
 from ..twoPlayerGridState import TwoPlayerGridState
@@ -61,6 +62,9 @@ class PentagoGameState(AbstractGridGameState):
     
     @property
     def turn_step(self) -> int: return self.turnTracker.current_turn_step
+    
+    @property
+    def last_player_to_move(self) -> int: return self.turnTracker.last_player_to_move
 
     @property
     def grid_0(self) -> np.array: return self.gridState.grid_0
@@ -81,18 +85,23 @@ class PentagoGameState(AbstractGridGameState):
             nextGridStates.append(nextGrid)
         return nextGridStates
 
-    def rotateMove(self, rotate_key: str) -> PentagoGameState:
+    def rotate(self, rotate_key: str) -> PentagoGameState:
         return PentagoGameState(
             self.turnTracker.getIncremented(),
             _rotatePentagoGrid(self.gridState, rotate_key)
         )
 
-    def placeMove(self, index: Tuple[int, int]) -> PentagoGameState:
+    def place(self, index: Tuple[int, int]) -> PentagoGameState:
         self.gridState.assert_unoccupied(index)
         return PentagoGameState(
             self.turnTracker.getIncremented(),
             self.gridState.placeOn(self.current_player, index)
         )
+
+    def skipRotation(self) -> PentagoGameState:
+        if self.turn_step != 1:
+            raise ValueError("Can only skip rotation on second part of turn")
+        return self.skipMove()
 
     def skipMove(self) -> PentagoGameState:
         return PentagoGameState(
@@ -141,14 +150,25 @@ class PentagoGameState(AbstractGridGameState):
     def isEnd(self) -> bool:
         return self.isDraw or self.isWin
 
+    def asNumpy(self) -> np.ndarray:
+        return np.concatenate([
+            np.array([self.current_player, self.turn_step]),
+            self.gridState.grid_0.flatten(),
+            self.gridState.grid_1.flatten(),
+        ])
+
     def asTensor(self) -> tf.Tensor:
         return tf.constant(
-            np.concatenate([
-                np.array([self.current_player, self.turn_step]),
-                self.gridState.grid_0.flatten(),
-                self.gridState.grid_1.flatten(),
-            ])
+            self.asNumpy()
         )
+
+    def __hash__(self) -> int:
+        arr = self.asNumpy().view()
+        hash = hashlib.sha1(arr).hexdigest()
+        return int(hash,16)
+
+    def __eq__(self, other: object) -> bool:
+        return np.all(self.asNumpy() == other.asNumpy())
 
     def flipCenterOfMassToUpperLeftBelowDiagonal(self) -> PentagoGameState:
         return PentagoGameState(
@@ -163,7 +183,14 @@ class PentagoGameState(AbstractGridGameState):
         turn_step = array[1]
         grid_0 = array[2:38].reshape((6,6))
         grid_1 = array[38:].reshape((6,6))
+        total_moves = (np.sum(grid_0) + np.sum(grid_1)) * 2 - turn_step
+        if turn_step == 0:
+            last_player_to_move = (current_player + 1) % 2
+        else:
+            last_player_to_move = current_player
+        if total_moves == 0:
+            last_player_to_move = None
         return PentagoGameState(
-            TurnTracker(2,2,current_player,turn_step),
+            TurnTracker(2,2,current_player,turn_step,total_moves,last_player_to_move),
             TwoPlayerGridState(grid_0, grid_1)
         )

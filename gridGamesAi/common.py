@@ -1,7 +1,11 @@
 from __future__ import annotations
+
 import functools
-from typing import Callable, List, Tuple
 from abc import ABC, abstractmethod, abstractproperty
+from typing import Callable, List, Tuple
+
+import numpy as np
+
 
 class AbstractGameState(ABC):
     @abstractproperty
@@ -30,13 +34,13 @@ class AbstractGameState(ABC):
 
 class AbstractGridGameState(AbstractGameState):
     @abstractproperty
-    def grid_0(self): pass
+    def grid_0(self) -> np.ndarray: pass
 
     @abstractproperty
-    def grid_1(self): pass
+    def grid_1(self) -> np.ndarray: pass
 
     @abstractmethod
-    def placeMove(self, index: Tuple[int,int]) -> AbstractGridGameState: pass
+    def place(self, index: Tuple[int,int]) -> AbstractGridGameState: pass
 
 def baseScoreStrategy(gameState: AbstractGameState, notEndScoreStrategy: Callable) -> float:
     """Score is 1 if player 0 wins, -1 if player 1 wins and 0 in case of a draw.

@@ -123,6 +123,6 @@ class UserPentagoAgent(UserGridAgent):
     def _try_rotate_move(self, x, y):
         try:
             rotate_key = self.rend.keyLookup[(x,y)]
-            self.nextGameState = self.inputGameState.rotateMove(rotate_key)
+            self.nextGameState = self.inputGameState.rotate(rotate_key)
         except KeyError:
             pass
