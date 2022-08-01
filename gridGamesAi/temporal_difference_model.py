@@ -19,6 +19,7 @@ class Pentago_TD_Agent(CachingScoringAgent):
         self.minimaxAgent = PruningAgent(scoringAgent=self, max_depth=6)
         self.td_model = None
         self.isCompiled = False
+        self.training_games = 0
 
         if loadPath is not None:
             self.load_td_model(loadPath)
@@ -45,6 +46,10 @@ class Pentago_TD_Agent(CachingScoringAgent):
                 "TD_model": TD_model,
             }
         )
+
+    def save_td_model(self, path: Path, overwrite_ok=False):
+        if (overwrite_ok or not path.exists()):
+            self.td_model.save(path)
 
     def compile_td_model(self):
         if self.td_model is None:
@@ -86,6 +91,7 @@ class Pentago_TD_Agent(CachingScoringAgent):
 class TD_model(tf.keras.Model):
     def __init__(self, *args, td_factor = 0.7, **kwargs) -> None:
         self.td_factor = td_factor
+        self.training_calls = 0
         super().__init__(*args, **kwargs)
 
     def train_td_from_sequential_states(self, tensor_states: List[tf.Tensor], scores: np.ndarray):
@@ -104,6 +110,8 @@ class TD_model(tf.keras.Model):
             )
         delta_trainable = self.get_update_as_weighted_sum_gradients(deltas, gradients)
         self.optimizer.apply_gradients(zip(delta_trainable, self.trainable_variables))
+
+        self.training_calls += 1
 
 
     def get_update_as_weighted_sum_gradients(
