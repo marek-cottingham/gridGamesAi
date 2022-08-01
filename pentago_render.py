@@ -1,14 +1,21 @@
 from time import sleep
+
 import matplotlib.pyplot as plt
 
-from gridGamesAi.pentago.gameState import PentagoGameState
-from gridGamesAi.pentago.render import PentagoRender, UserPentagoAgent
 from gridGamesAi.agents import RandomAgent
 from gridGamesAi.game import Game
+from gridGamesAi.minimax import MinimaxAgent
+from gridGamesAi.paths import PENTAGO_MODELS_DIR
+from gridGamesAi.pentago.gameState import PentagoGameState
+from gridGamesAi.pentago.render import PentagoRender, UserPentagoAgent
+from gridGamesAi.temporal_difference_model import Pentago_TD_Agent
+
+MOD_PATH = PENTAGO_MODELS_DIR / "test_model_2000"
 
 plt.ion()
 renderer = PentagoRender()
-g = Game([RandomAgent(), UserPentagoAgent(renderer)], PentagoGameState(), renderer.render)
+pentAgent = Pentago_TD_Agent(MOD_PATH)
+g = Game([MinimaxAgent(pentAgent, 2), UserPentagoAgent(renderer)], PentagoGameState(), renderer.render)
 
 while not g.current_game_state.isEnd:
     g.moveWithCurrentPlayer()

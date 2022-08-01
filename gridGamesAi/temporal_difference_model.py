@@ -1,11 +1,12 @@
 from functools import cache
+import json
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 import tensorflow as tf
 import numpy as np
 from gridGamesAi.common import AbstractGameState, AbstractGridGameState, baseScoreStrategy
 from gridGamesAi.game import Game
-from gridGamesAi.minimax import PruningAgent
+from gridGamesAi.minimax import MinimaxAgent, PruningAgent
 from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.scoringAgent import PentagoNaiveScoringAgent
 from gridGamesAi.scoringAgents import AbstractScoringAgent, CachingScoringAgent
@@ -16,14 +17,19 @@ class Pentago_TD_Agent(CachingScoringAgent):
         loadPath = None,
         createNewModel = False
     ) -> None:
-        self.minimaxAgent = PruningAgent(scoringAgent=self, max_depth=6)
+        """ Initialize the agent. If loadPath is provided, td model 
+        will be loaded from that path. If createNewModel is True and loadPath
+        is None, a new model will be created. """
+        self.minimaxAgent = MinimaxAgent(scoringAgent=self, max_depth=1)
         self.td_model = None
         self.isCompiled = False
-        self.training_games = 0
+
+        self.training_calls = 0
+        self.trainingCall_totalMoves: List[Tuple[int, int]] = []
 
         if loadPath is not None:
-            self.load_td_model(loadPath)
-        if createNewModel:
+            self.load(loadPath)
+        if createNewModel and self.td_model is None:
             self.create_td_model()
         if self.td_model is not None:
             self.compile_td_model()
@@ -38,8 +44,28 @@ class Pentago_TD_Agent(CachingScoringAgent):
             output(internal_2(internal_1(inputs))), 
         )
 
-    def load_td_model(self, path: Path):
-         self.td_model: TD_model = tf.keras.models.load_model(
+    def load(self, path: Path, verbose=False):
+        if verbose:
+            print(f"Loading TD model from {path}")
+        self._load_td_model(path)
+        loadRecordSuccess = self._try_load_training_record(path)
+        if verbose and loadRecordSuccess:
+            print("    Found and loaded training calls record file")
+        if verbose:
+            print(f"    Previous model training calls: {self.training_calls}")
+
+    def _try_load_training_record(self, path):
+        try:
+            with open(path.parent / (path.stem + ".json")) as f:
+                obj = json.load(f)
+                self.training_calls = obj["training_calls"]
+                self.trainingCall_totalMoves = obj["trainingCall_totalMoves"]
+                return True
+        except FileNotFoundError:
+            return False
+
+    def _load_td_model(self, path):
+        self.td_model: TD_model = tf.keras.models.load_model(
             path,
             custom_objects={
                 "pentagoTD_model": TD_model,
@@ -47,9 +73,24 @@ class Pentago_TD_Agent(CachingScoringAgent):
             }
         )
 
-    def save_td_model(self, path: Path, overwrite_ok=False):
+    def save(self, path: Path, overwrite_ok=False):
+        self._save_td_model(path, overwrite_ok)
+        self._save_training_record(path)
+
+    def _save_training_record(self, path):
+        json_path = path.parent / (path.stem + ".json")
+        with open(json_path, "w") as f:
+            json.dump({
+                "training_calls": self.training_calls,
+                "trainingCall_totalMoves": self.trainingCall_totalMoves
+            },f)
+
+    def _save_td_model(self, path, overwrite_ok):
         if (overwrite_ok or not path.exists()):
             self.td_model.save(path)
+        elif path.exists():
+            raise Exception(
+                "Model path already exists, set overwrite_ok to True to overwrite")
 
     def compile_td_model(self):
         if self.td_model is None:
@@ -78,21 +119,38 @@ class Pentago_TD_Agent(CachingScoringAgent):
         self.score.cache_clear()
 
     def train_td_from_game(self, rootGameState: PentagoGameState):
+        movesSequence = self._generate_self_play_moves_sequence(rootGameState)
 
-        movesSequence: List[PentagoGameState] = [rootGameState]
-        while not movesSequence[-1].isEnd:
-            movesSequence.append(self.minimaxAgent.move(movesSequence[-1]))
-        gameStateTensors = [
-            gameState.asTensor() for gameState in movesSequence
-        ]
+        gameStateTensors = [gameState.asTensor() for gameState in movesSequence]
         scores = np.array([self.score(gameState) for gameState in movesSequence])
+
         self.td_model.train_td_from_sequential_states(gameStateTensors, scores)
         self.resetCache()
+        self._update_training_record(movesSequence)
+
+    def _update_training_record(self, movesSequence: List[PentagoGameState]):
+        self.training_calls += 1
+        self.trainingCall_totalMoves.append(
+            (
+                self.training_calls,
+                movesSequence[-1].turnTracker.total_moves, 
+            )
+        )
+
+    def _generate_self_play_moves_sequence(self, rootGameState):
+        movesSequence: List[PentagoGameState] = [rootGameState]
+        while not movesSequence[-1].isEnd:
+            print(
+                f"Game {self.training_calls} ",
+                f"- Total moves: {movesSequence[-1].turnTracker.total_moves}",
+                end="\r")
+            movesSequence.append(self.minimaxAgent.move(movesSequence[-1]))
+        return movesSequence
+
 class TD_model(tf.keras.Model):
     def __init__(self, *args, td_factor = 0.7, **kwargs) -> None:
-        self.td_factor = td_factor
-        self.training_calls = 0
         super().__init__(*args, **kwargs)
+        self.td_factor = td_factor
 
     def train_td_from_sequential_states(self, tensor_states: List[tf.Tensor], scores: np.ndarray):
         """Trains the tensor model from a series of tensor_states and their know score (using
@@ -110,8 +168,6 @@ class TD_model(tf.keras.Model):
             )
         delta_trainable = self.get_update_as_weighted_sum_gradients(deltas, gradients)
         self.optimizer.apply_gradients(zip(delta_trainable, self.trainable_variables))
-
-        self.training_calls += 1
 
 
     def get_update_as_weighted_sum_gradients(
