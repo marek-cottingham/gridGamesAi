@@ -15,7 +15,11 @@ MOD_PATH = PENTAGO_MODELS_DIR / "test_model_2000"
 plt.ion()
 renderer = PentagoRender()
 pentAgent = Pentago_TD_Agent(MOD_PATH)
-g = Game([MinimaxAgent(pentAgent, 2), UserPentagoAgent(renderer)], PentagoGameState(), renderer.render)
+g = Game(
+    [MinimaxAgent(pentAgent, 2), UserPentagoAgent(renderer)],
+    PentagoGameState.fairVariant(),
+    renderer.render
+)
 
 while not g.current_game_state.isEnd:
     g.moveWithCurrentPlayer()

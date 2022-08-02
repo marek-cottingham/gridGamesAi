@@ -194,3 +194,13 @@ class PentagoGameState(AbstractGridGameState):
             TurnTracker(2,2,current_player,turn_step,total_moves,last_player_to_move),
             TwoPlayerGridState(grid_0, grid_1)
         )
+
+    @classmethod
+    def fairVariant(self) -> PentagoGameState:
+        """Under ideal play, pentago is a first player win. In order to make the
+        game fairer (draw under ideal play), we can force the first player to play a
+        specific move. This is a more interesting variant of the game.
+
+        See: https://perfect-pentago.net/
+        """
+        return PentagoGameState().place((0,0)).skipRotation()

@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import List, Tuple
 import tensorflow as tf
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from gridGamesAi.agents import AbstractAgent
 from gridGamesAi.common import AbstractGameState, AbstractGridGameState, baseScoreStrategy
 from gridGamesAi.game import Game
 from gridGamesAi.minimax import MinimaxAgent, PruningAgent
@@ -15,14 +18,18 @@ class Pentago_TD_Agent(CachingScoringAgent):
     def __init__(
         self,
         loadPath = None,
-        createNewModel = False
+        createNewModel = False,
+        minixmaxAgent = MinimaxAgent(None, max_depth=0),
     ) -> None:
         """ Initialize the agent. If loadPath is provided, td model 
         will be loaded from that path. If createNewModel is True and loadPath
         is None, a new model will be created. """
-        self.minimaxAgent = MinimaxAgent(scoringAgent=self, max_depth=1)
+        
         self.td_model = None
         self.isCompiled = False
+
+        self.minimaxAgent: MinimaxAgent = minixmaxAgent
+        self.minimaxAgent.scoringAgent = self
 
         self.training_calls = 0
         self.trainingCall_totalMoves: List[Tuple[int, int]] = []
@@ -142,10 +149,28 @@ class Pentago_TD_Agent(CachingScoringAgent):
         while not movesSequence[-1].isEnd:
             print(
                 f"Game {self.training_calls} ",
-                f"- Total moves: {movesSequence[-1].turnTracker.total_moves}",
+                f"- Total moves: {movesSequence[-1].turnTracker.total_moves}     ",
                 end="\r")
             movesSequence.append(self.minimaxAgent.move(movesSequence[-1]))
         return movesSequence
+
+    def plot_training_total_moves(self):
+        x = [i[0] for i in self.trainingCall_totalMoves]
+        y = [i[1] for i in self.trainingCall_totalMoves]
+        df = pd.DataFrame({"training_run": x, "moves": y})
+        df['moves_avg'] = df['moves'].rolling(window=100).mean()
+        df['moves_10'] = df['moves'].rolling(window=100).quantile(0.1, 'linear')
+        df['moves_90'] = df['moves'].rolling(window=100).quantile(0.9, 'linear')
+        plt.plot(df['training_run'], df['moves_avg'])
+        plt.fill_between(
+            df['training_run'], 
+            df["moves_10"],
+            df["moves_90"],
+            alpha=0.2
+        )
+        plt.xlabel("Training run")
+        plt.ylabel(f"Moves (rolling average) - Shaded: 10% and 90% quantiles")
+        plt.show()
 
 class TD_model(tf.keras.Model):
     def __init__(self, *args, td_factor = 0.7, **kwargs) -> None:
