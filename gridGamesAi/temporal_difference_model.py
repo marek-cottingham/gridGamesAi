@@ -120,7 +120,9 @@ class Pentago_TD_Agent(CachingScoringAgent):
         return baseScoreStrategy(gameState, self._score)
 
     def _score(self, gameState: PentagoGameState):
-        return self.td_model.__call__(gameState.asTensor()[None, :]).numpy()[0,0]
+        return self.td_model.__call__(
+            gameState.flipCenterOfMassToUpperLeftBelowDiagonal().asTensor()[None, :]
+        ).numpy()[0,0]
 
     def resetCache(self):
         self.score.cache_clear()
@@ -128,7 +130,10 @@ class Pentago_TD_Agent(CachingScoringAgent):
     def train_td_from_game(self, rootGameState: PentagoGameState):
         movesSequence = self._generate_self_play_moves_sequence(rootGameState)
 
-        gameStateTensors = [gameState.asTensor() for gameState in movesSequence]
+        gameStateTensors = [
+            gameState.flipCenterOfMassToUpperLeftBelowDiagonal().asTensor() 
+            for gameState in movesSequence
+        ]
         scores = np.array([self.score(gameState) for gameState in movesSequence])
 
         self.td_model.train_td_from_sequential_states(gameStateTensors, scores)

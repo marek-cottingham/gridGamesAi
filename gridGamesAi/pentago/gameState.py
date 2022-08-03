@@ -176,9 +176,15 @@ class PentagoGameState(AbstractGridGameState):
             self.gridState.flipCenterOfMassToUpperLeftBelowDiagonal()
         )
 
+    
+
     @classmethod
     def fromTensor(self, tensor: tf.Tensor) -> PentagoGameState:
         array: np.ndarray = tensor.numpy()
+        return self.fromNumpy(array)
+
+    @classmethod
+    def fromNumpy(self, array: np.ndarray) -> PentagoGameState:
         current_player = array[0]
         turn_step = array[1]
         grid_0 = array[2:38].reshape((6,6))

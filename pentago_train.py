@@ -10,8 +10,8 @@ from gridGamesAi.game import Game
 from gridGamesAi.temporal_difference_model import Pentago_TD_Agent
 
 MOD_PATH = None
-LOAD_MOD_PATH = PENTAGO_MODELS_DIR / "test_model_12000"
-SAVE_MOD_PATH = PENTAGO_MODELS_DIR / "test_model_12000"
+LOAD_MOD_PATH = PENTAGO_MODELS_DIR / "test_model_50000"
+SAVE_MOD_PATH = PENTAGO_MODELS_DIR / "test_model_50000"
 os.makedirs(SAVE_MOD_PATH.parent, exist_ok=True)
 
 pentAgent = Pentago_TD_Agent(None, None, MinimaxAgent(None, max_depth=0))
@@ -31,7 +31,8 @@ def init_with_n_random_moves(n):
 
 pentAgent.plot_training_total_moves()
 
-while pentAgent.training_calls < 12000:
-    gs = init_with_n_random_moves(3)
+while pentAgent.training_calls < 50000:
+    gs = init_with_n_random_moves(6)
     pentAgent.train_td_from_game(gs)
-    pentAgent.save(SAVE_MOD_PATH, True)
+    if pentAgent.training_calls % 50 == 0:
+        pentAgent.save(SAVE_MOD_PATH, True)
