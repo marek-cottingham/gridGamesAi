@@ -94,16 +94,17 @@ func (gs *GameState) GetNext() *[]*GameState {
 
 func (gs *GameState) PopulateNext() {
 	var next []*GameState
+	turn := gs.Turn.GetIncremented()
 	if gs.Turn.Current_turn_step == 0 {
 		next = make([]*GameState, 0, 36)
 		valid_grids := gs.Grid.GetValidPlacements(gs.Turn.Current_player)
 		for _, valid_grid := range valid_grids {
-			next = append(next, &GameState{valid_grid, gs.Turn.GetIncremented(), nil, nil})
+			next = append(next, &GameState{valid_grid, turn, nil, nil})
 		}
 	} else {
 		next = make([]*GameState, 0, 8)
 		for rot_key := range gridState.RotationMap {
-			next = append(next, &GameState{gs.Grid.Rotate(rot_key), gs.Turn.GetIncremented(), nil, nil})
+			next = append(next, &GameState{gs.Grid.Rotate(rot_key), turn, nil, nil})
 		}
 	}
 	gs.Next = &next

@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+from time import time
 from gridGamesAi.minimax import MinimaxAgent
 from gridGamesAi.paths import PENTAGO_MODELS_DIR
 
@@ -31,8 +32,11 @@ def init_with_n_random_moves(n):
 
 pentAgent.plot_training_total_moves()
 
+start = time()
 while pentAgent.training_calls < 50000:
     gs = init_with_n_random_moves(6)
     pentAgent.train_td_from_game(gs)
     if pentAgent.training_calls % 50 == 0:
         pentAgent.save(SAVE_MOD_PATH, True)
+        print("Time for 50 calls:", time() - start)
+        start = time()

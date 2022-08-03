@@ -185,8 +185,8 @@ class PentagoGameState(AbstractGridGameState):
 
     @classmethod
     def fromNumpy(self, array: np.ndarray) -> PentagoGameState:
-        current_player = array[0]
-        turn_step = array[1]
+        current_player = int(array[0])
+        turn_step = int(array[1])
         grid_0 = array[2:38].reshape((6,6))
         grid_1 = array[38:].reshape((6,6))
         total_moves = (np.sum(grid_0) + np.sum(grid_1)) * 2 - turn_step

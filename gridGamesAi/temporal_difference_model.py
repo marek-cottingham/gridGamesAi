@@ -13,6 +13,7 @@ from gridGamesAi.minimax import MinimaxAgent, PruningAgent
 from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.scoringAgent import PentagoNaiveScoringAgent
 from gridGamesAi.scoringAgents import AbstractScoringAgent, CachingScoringAgent
+from gridGamesAi.go_interface import goSelfPlay
 
 class Pentago_TD_Agent(CachingScoringAgent):
     def __init__(
@@ -127,8 +128,12 @@ class Pentago_TD_Agent(CachingScoringAgent):
     def resetCache(self):
         self.score.cache_clear()
 
-    def train_td_from_game(self, rootGameState: PentagoGameState):
-        movesSequence = self._generate_self_play_moves_sequence(rootGameState)
+    def train_td_from_game(self, rootGameState: PentagoGameState, usePythonNative = False):
+        if usePythonNative:
+            movesSequence = self._generate_self_play_moves_sequence(rootGameState)
+        else:
+            movesSequence = goSelfPlay(rootGameState, 0, self.score)
+            print(f"Game {self.training_calls} ", end="\r")
 
         gameStateTensors = [
             gameState.flipCenterOfMassToUpperLeftBelowDiagonal().asTensor() 
@@ -145,7 +150,7 @@ class Pentago_TD_Agent(CachingScoringAgent):
         self.trainingCall_totalMoves.append(
             (
                 self.training_calls,
-                movesSequence[-1].turnTracker.total_moves, 
+                int(movesSequence[-1].turnTracker.total_moves), 
             )
         )
 
