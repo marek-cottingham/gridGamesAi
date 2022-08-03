@@ -23,7 +23,8 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 #include <stdlib.h>
 typedef float (*Score) (int*);
-float MakeCallback(Score f, int* arr_grid);
+extern int* C_Minimax_Move(int* grid, int grid_size, int depth, Score score);
+extern void free_arr_int(int* p);
 
 #line 1 "cgo-generated-wrapper"
 
@@ -75,7 +76,7 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern __declspec(dllexport) int* C_Minimax_Move(int* grid, GoInt grid_size, GoInt depth, Score score);
+extern __declspec(dllexport) int* C_Minimax_Move(int* grid, int grid_size, int depth, Score score);
 extern __declspec(dllexport) void free_arr_int(int* p);
 
 #ifdef __cplusplus
