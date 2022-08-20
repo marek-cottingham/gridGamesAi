@@ -14,6 +14,9 @@ lib.Go_Self_Play.argtypes = [c_int_p, c_int, c_int]
 lib.Go_Self_Play.restype = c_int_p
 lib.free_arr_int.argtypes = [c_int_p]
 
+exception_raised_inside_ctypes_callback = False
+keyboard_interrupt_inside_ctypes_callback = False
+
 def goMinimaxMove(gameState: PentagoGameState, depth: int, score_gameState: callable):
     score, c_arr, c_arr_size = _parseInputs(gameState, score_gameState)
     out_c_arr = lib.C_Minimax_Move(c_arr, c_arr_size, c_int(depth), score)
@@ -24,8 +27,17 @@ def goMinimaxMove(gameState: PentagoGameState, depth: int, score_gameState: call
 def _parseInputs(gameState: PentagoGameState, score_gameState: callable):
     @ctypes.CFUNCTYPE(c_float, c_int_p)
     def score(c_arr: c_int_p):
-        arr = _decode_c_arr_74_int(c_arr)
-        return score_gameState(PentagoGameState.fromNumpy(arr))
+        try:
+            arr = _decode_c_arr_74_int(c_arr)
+            return score_gameState(PentagoGameState.fromNumpy(arr))
+        except Exception as e:
+            global exception_raised_inside_ctypes_callback
+            exception_raised_inside_ctypes_callback = True
+            raise e
+        except KeyboardInterrupt as e:
+            global keyboard_interrupt_inside_ctypes_callback
+            keyboard_interrupt_inside_ctypes_callback = True
+            return 0.0
     c_arr, c_arr_size = _ndarrInt_to_CintArray(gameState.asNumpy())
     return score, c_arr, c_arr_size
 
@@ -34,9 +46,18 @@ def goSelfPlay(
 ) -> List[PentagoGameState]:
     score, c_arr, c_arr_size = _parseInputs(gameState, score_gameState)
     out_c_arr = lib.Go_Self_Play(c_arr, c_arr_size, c_int(depth), score)
+    _raise_if_reported_exception()
     decoded = _decode_c_arr_arr_74_int(out_c_arr)
     lib.free_arr_int(out_c_arr)
     return [PentagoGameState.fromNumpy(d) for d in decoded]
+
+def _raise_if_reported_exception():
+    if exception_raised_inside_ctypes_callback:
+        raise Exception("Exception raised inside ctypes callback")
+    if keyboard_interrupt_inside_ctypes_callback:
+        print("")
+        print("Keyboard interrupt")
+        exit()
 
 def _decode_c_arr_74_int(out_c_arr):
     decoded = np.fromiter(out_c_arr, dtype=np.int32, count=74)
