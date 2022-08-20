@@ -186,6 +186,8 @@ class TD_model(tf.keras.Model):
     def __init__(self, *args, td_factor = 0.7, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.td_factor = td_factor
+        self.batch_size = 20
+        self.batch_pending = []
 
     def train_td_from_sequential_states(self, tensor_states: List[tf.Tensor], scores: np.ndarray):
         """Trains the tensor model from a series of tensor_states and their know score (using
@@ -202,7 +204,15 @@ class TD_model(tf.keras.Model):
                 tape.gradient(tfModelScore, self.trainable_variables)
             )
         delta_trainable = self.get_update_as_weighted_sum_gradients(deltas, gradients)
-        self.optimizer.apply_gradients(zip(delta_trainable, self.trainable_variables))
+        if self.batch_size == 1:
+            self.optimizer.apply_gradients(zip(delta_trainable, self.trainable_variables))
+        else:
+            self.batch_pending.append(delta_trainable)
+
+        if len(self.batch_pending) >= self.batch_size:
+            sum_delta_trainable = [tf.add_n(i) for i in zip(*self.batch_pending)]
+            self.optimizer.apply_gradients(zip(sum_delta_trainable, self.trainable_variables))
+            self.batch_pending = []
 
 
     def get_update_as_weighted_sum_gradients(
