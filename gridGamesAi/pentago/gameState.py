@@ -12,6 +12,9 @@ from ..turnTracker import TurnTracker
 from ..twoPlayerGridState import TwoPlayerGridState
 from .rotations import rotations, rotationsKeys
 from ..common import AbstractGridGameState
+from ..agents import RandomAgent
+
+randAgent = RandomAgent()
 
 def _gridOccupancy(grid: np.ndarray) -> List[int]:
     """Evaluates the number of pieces a player has on each row, column or diagonal
@@ -210,3 +213,11 @@ class PentagoGameState(AbstractGridGameState):
         See: https://perfect-pentago.net/
         """
         return PentagoGameState().place((0,0)).skipRotation()
+
+    @classmethod
+    def init_with_n_random_moves(self, n):
+        gs = PentagoGameState.fairVariant()
+        for _ in range(n):
+            gs: PentagoGameState = randAgent.move(gs)
+            gs = gs.skipMove()
+        return gs

@@ -11,8 +11,8 @@ from gridGamesAi.game import Game
 from gridGamesAi.temporal_difference_model import Pentago_TD_Agent
 
 MOD_PATH = None
-LOAD_MOD_PATH = PENTAGO_MODELS_DIR / "test_model_50000"
-SAVE_MOD_PATH = PENTAGO_MODELS_DIR / "test_model_50000"
+LOAD_MOD_PATH = PENTAGO_MODELS_DIR / "test_model_8000"
+SAVE_MOD_PATH = PENTAGO_MODELS_DIR / "alpha_model_12000"
 os.makedirs(SAVE_MOD_PATH.parent, exist_ok=True)
 
 pentAgent = Pentago_TD_Agent(None, None, MinimaxAgent(None, max_depth=0))
@@ -23,20 +23,18 @@ else:
 pentAgent.compile_td_model()
 randAgent = RandomAgent()
 
-def init_with_n_random_moves(n):
-    gs = PentagoGameState.fairVariant()
-    for _ in range(n):
-        gs: PentagoGameState = randAgent.move(gs)
-        gs = gs.skipMove()
-    return gs
-
 pentAgent.plot_training_total_moves()
+pentAgent.td_model.batch_size = 20
 
 start = time()
-while pentAgent.training_calls < 50000:
-    gs = init_with_n_random_moves(6)
+while pentAgent.training_calls < 20000:
+    gs = PentagoGameState.init_with_n_random_moves(6)
     pentAgent.train_td_from_game(gs)
-    if pentAgent.training_calls % 50 == 0:
+    
+    if pentAgent.training_calls % 40 == 0:
         pentAgent.save(SAVE_MOD_PATH, True)
-        print("Time for 50 calls:", time() - start)
+        print("Time for 40 calls:", time() - start)
         start = time()
+
+        if pentAgent.training_calls % 4000 == 0:
+            SAVE_MOD_PATH = PENTAGO_MODELS_DIR / "alpha_model_" + str(pentAgent.training_calls+4000)
