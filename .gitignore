@@ -1,3 +1,9 @@
 \!\!*
 __pycache__
-pentagoModelStates/
+pentagoModelStates/*
+!pentagoModelStates/alpha_model_*.json
+!pentagoModelStates/alpha_model_*/
+pentagoModelStates/alpha_model_1????.json
+pentagoModelStates/alpha_model_2????.json
+pentagoModelStates/alpha_model_1????/
+pentagoModelStates/alpha_model_2????/
