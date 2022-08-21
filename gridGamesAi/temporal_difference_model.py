@@ -13,7 +13,14 @@ from gridGamesAi.minimax import MinimaxAgent, PruningAgent
 from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.scoringAgent import PentagoNaiveScoringAgent
 from gridGamesAi.scoringAgents import AbstractScoringAgent, CachingScoringAgent
-from gridGamesAi.go_interface import goSelfPlay
+
+CAN_GO_SELF_PLAY = False
+
+try:
+    from gridGamesAi.go_interface import goSelfPlay
+    CAN_GO_SELF_PLAY = True
+except Exception as e:
+    print(e)
 
 class Pentago_TD_Agent(CachingScoringAgent):
     def __init__(
@@ -129,7 +136,7 @@ class Pentago_TD_Agent(CachingScoringAgent):
         self.score.cache_clear()
 
     def train_td_from_game(self, rootGameState: PentagoGameState, usePythonNative = False):
-        if usePythonNative:
+        if usePythonNative or not CAN_GO_SELF_PLAY:
             movesSequence = self._generate_self_play_moves_sequence(rootGameState)
         else:
             movesSequence = goSelfPlay(rootGameState, 0, self.score)

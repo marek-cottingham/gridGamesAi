@@ -11,7 +11,7 @@ c_int_p = ctypes.POINTER(c_int)
 lib_path = './go_gridgamesAi/_goPentago.so'
 print(f"Load library: {Path(lib_path).absolute()}")
 
-lib = ctypes.cdll.LoadLibrary(Path(lib_path).absolute())
+lib = ctypes.cdll.LoadLibrary(lib_path)
 lib.C_Minimax_Move.argtypes = [c_int_p, c_int, c_int]
 lib.C_Minimax_Move.restype = c_int_p
 lib.Go_Self_Play.argtypes = [c_int_p, c_int, c_int]
