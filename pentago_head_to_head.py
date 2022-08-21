@@ -11,8 +11,8 @@ from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.render import PentagoRender, UserPentagoAgent
 from gridGamesAi.temporal_difference_model import Pentago_TD_Agent
 
-path_0 = PENTAGO_MODELS_DIR / "test_model_2000"
-path_1 = PENTAGO_MODELS_DIR / "test_model_8000"
+path_0 = PENTAGO_MODELS_DIR / "alpha_model_12000"
+path_1 = PENTAGO_MODELS_DIR / "alpha_model_20000"
 
 def _run_game(wins_0, wins_1, pentAgent_0, pentAgent_1):
     g = Game(
