@@ -2,12 +2,16 @@ import ctypes
 from typing import List
 import numpy as np
 from .pentago.gameState import PentagoGameState
+from pathlib import Path
 
 c_int = ctypes.c_int
 c_float = ctypes.c_float
 c_int_p = ctypes.POINTER(c_int)
 
-lib = ctypes.cdll.LoadLibrary('./go_gridgamesAi/_goPentago.so')
+lib_path = './go_gridgamesAi/_goPentago.so'
+print(f"Load library: {Path(lib_path).absolute()}")
+
+lib = ctypes.cdll.LoadLibrary()
 lib.C_Minimax_Move.argtypes = [c_int_p, c_int, c_int]
 lib.C_Minimax_Move.restype = c_int_p
 lib.Go_Self_Play.argtypes = [c_int_p, c_int, c_int]
