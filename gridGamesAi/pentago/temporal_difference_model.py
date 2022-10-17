@@ -17,7 +17,7 @@ from gridGamesAi.scoringAgents import AbstractScoringAgent, CachingScoringAgent
 CAN_GO_SELF_PLAY = False
 
 try:
-    from gridGamesAi.go_interface import goSelfPlay
+    from gridGamesAi.pentago.go_interface import goSelfPlay
     CAN_GO_SELF_PLAY = True
 except Exception as e:
     print(e)

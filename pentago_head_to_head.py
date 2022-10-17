@@ -1,5 +1,5 @@
+from datetime import datetime
 from time import sleep
-from turtle import Pen
 
 import matplotlib.pyplot as plt
 
@@ -9,7 +9,8 @@ from gridGamesAi.minimax import MinimaxAgent
 from gridGamesAi.paths import PENTAGO_MODELS_DIR
 from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.render import PentagoRender, UserPentagoAgent
-from gridGamesAi.temporal_difference_model import Pentago_TD_Agent
+from gridGamesAi.pentago.scoringAgent import PentagoNaiveScoringAgent
+from gridGamesAi.pentago.temporal_difference_model import Pentago_TD_Agent
 
 path_0 = PENTAGO_MODELS_DIR / "alpha_model_12000"
 path_1 = PENTAGO_MODELS_DIR / "alpha_model_20000"
@@ -30,9 +31,11 @@ def _run_game(wins_0, wins_1, pentAgent_0, pentAgent_1):
 wins = [0,0]
 pentAgent_0 = Pentago_TD_Agent(path_0)
 pentAgent_1 = Pentago_TD_Agent(path_1)
+startTime = datetime.now()
 for i in range(50):
     wins = _run_game(wins[0], wins[1], pentAgent_0, pentAgent_1)
     wins = _run_game(wins[0], wins[1], pentAgent_1, pentAgent_0)
     
     print(  f"  {wins[0]}:{wins[1]}|{path_0.stem}:{path_1.stem}         ", end='\r')
 print(  f"  {wins[0]}:{wins[1]}|{path_0.stem}:{path_1.stem}           ")
+print(f"Time taken: {datetime.now() - startTime}")

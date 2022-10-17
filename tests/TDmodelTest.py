@@ -2,7 +2,7 @@ import unittest
 import tensorflow as tf
 import numpy as np
 
-from gridGamesAi.temporal_difference_model import TD_model
+from gridGamesAi.pentago.temporal_difference_model import TD_model
 
 class TDmodelTestCase(unittest.TestCase):
     def test_generate_td_weights(self):

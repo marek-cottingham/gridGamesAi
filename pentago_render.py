@@ -8,7 +8,7 @@ from gridGamesAi.minimax import MinimaxAgent
 from gridGamesAi.paths import PENTAGO_MODELS_DIR
 from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.render import PentagoRender, UserPentagoAgent
-from gridGamesAi.temporal_difference_model import Pentago_TD_Agent
+from gridGamesAi.pentago.temporal_difference_model import Pentago_TD_Agent
 
 MOD_PATH = PENTAGO_MODELS_DIR / "test_model_50000"
 

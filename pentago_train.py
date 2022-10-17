@@ -9,7 +9,7 @@ from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.pentago.render import PentagoRender, UserPentagoAgent
 from gridGamesAi.agents import RandomAgent
 from gridGamesAi.game import Game
-from gridGamesAi.temporal_difference_model import Pentago_TD_Agent
+from gridGamesAi.pentago.temporal_difference_model import Pentago_TD_Agent
 
 MOD_PATH = None
 LOAD_MOD_PATH = PENTAGO_MODELS_DIR / "alpha_model_32000"

@@ -1,7 +1,7 @@
 import ctypes
 from typing import List
 import numpy as np
-from .pentago.gameState import PentagoGameState
+from .gameState import PentagoGameState
 from pathlib import Path
 
 c_int = ctypes.c_int
