@@ -4,9 +4,9 @@ from matplotlib import patches
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..game import Game
+from ..common import AbstractRotationGridGameState
+
 from ..render import GridRender, UserGridAgent
-from .gameState import PentagoGameState
 
 def _patchArrowArc(x, y, theta1, theta2):
     return patches.Arc(
@@ -54,7 +54,7 @@ def rotateArrow(x,y,rotationKey):
 
 class PentagoRender(GridRender):
 
-    # Rotate icons locations during turn_step = 1
+    # Rotate icons locations during turn_step = 1 for gridSize = 6
     # _____ tl_c  _ _ tr_ac ____
     # tl_ac _____ _ _ _____ tr_c
     # ...
@@ -64,24 +64,29 @@ class PentagoRender(GridRender):
 
     # Clicking on these locations should perform the corresponding rotation
     # operation, as given by the key lookup table
-    keyLookup = {
-            (0, 1): 'tl_c',
-            (1, 0): 'tl_ac',
-            (4, 0): 'bl_c',
-            (5, 1): 'bl_ac',
-            (1, 5): 'tr_c',
-            (0, 4): 'tr_ac',
-            (5, 4): 'br_c',
-            (4, 5): 'br_ac',
-        }
-
-    def __init__(self):
+    
+    def __init__(self, gridSize=6):
         super().__init__()
 
-        # Configure the plot
+        first_index_ = 0
+        second_index = 1
+        second_last_index = gridSize - 2
+        last_index_______ = gridSize - 1
+        self.keyLookup = {
+                (first_index_, second_index): 'tl_c',
+                (second_index, first_index_): 'tl_ac',
+                (second_last_index, first_index_): 'bl_c',
+                (first_index_, second_last_index): 'tr_ac',
+                (last_index_______, second_index): 'bl_ac',
+                (second_index, last_index_______): 'tr_c',
+                (last_index_______, second_last_index): 'br_c',
+                (second_last_index, last_index_______): 'br_ac',
+            }
+
+         # Configure the plot
         self._generateRotateArrowPatches()
-        self.ax.axhline(2.5, color='k')
-        self.ax.axvline(2.5, color='k')
+        self.ax.axhline((gridSize-1)/2, color='k')
+        self.ax.axvline((gridSize-1)/2, color='k')
 
     def _generateRotateArrowPatches(self):
         self.rotateArrowsPatches = []
@@ -102,7 +107,7 @@ class UserPentagoAgent(UserGridAgent):
             rend = PentagoRender()
         super().__init__(rend)
         self.rend: PentagoRender
-        self.inputGameState: PentagoGameState
+        self.inputGameState: AbstractRotationGridGameState
 
     def _move_setup(self, gameState):
         super()._move_setup(gameState)

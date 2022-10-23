@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 from abc import ABC, abstractmethod, abstractproperty
+import string
 from typing import Callable, List, Tuple
 
 import numpy as np
@@ -41,6 +42,10 @@ class AbstractGridGameState(AbstractGameState):
 
     @abstractmethod
     def place(self, index: Tuple[int,int]) -> AbstractGridGameState: pass
+
+class AbstractRotationGridGameState(AbstractGridGameState):
+    @abstractmethod
+    def rotate(self, rot: string) -> AbstractRotationGridGameState: pass
 
 def baseScoreStrategy(gameState: AbstractGameState, notEndScoreStrategy: Callable) -> float:
     """Score is 1 if player 0 wins, -1 if player 1 wins and 0 in case of a draw.
