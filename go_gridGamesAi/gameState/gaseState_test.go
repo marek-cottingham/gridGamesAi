@@ -1,7 +1,7 @@
 package gameState_test
 
 import (
-	"marek/goPentago/go_gridGamesAi/gameState.go"
+	"marek/goPentago/go_gridGamesAi/gameState"
 	"testing"
 )
 

@@ -9,7 +9,7 @@ extern void free_arr_int(int* p);
 */
 import "C"
 import (
-	"marek/goPentago/go_gridGamesAi/gameState.go"
+	"marek/goPentago/go_gridGamesAi/gameState"
 	"unsafe"
 )
 
