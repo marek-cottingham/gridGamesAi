@@ -52,7 +52,7 @@ def rotateArrow(x,y,rotationKey):
     if not isClockwise:
         return antiClockwiseRotateArrow(x,y)
 
-class PentagoRender(GridRender):
+class NgoRender(GridRender):
 
     # Rotate icons locations during turn_step = 1 for gridSize = 6
     # _____ tl_c  _ _ tr_ac ____
@@ -100,13 +100,13 @@ class PentagoRender(GridRender):
         for patch in self.rotateArrowsPatches:
             patch.set_visible(isVisible)
 
-class UserPentagoAgent(UserGridAgent):
+class UserNgoAgent(UserGridAgent):
 
-    def __init__(self, rend: PentagoRender | None = None):
+    def __init__(self, rend: NgoRender | None = None):
         if rend is None:
-            rend = PentagoRender()
+            rend = NgoRender()
         super().__init__(rend)
-        self.rend: PentagoRender
+        self.rend: NgoRender
         self.inputGameState: AbstractRotationGridGameState
 
     def _move_setup(self, gameState):

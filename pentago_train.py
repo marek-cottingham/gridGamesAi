@@ -6,7 +6,7 @@ from gridGamesAi.minimax import MinimaxAgent
 from gridGamesAi.paths import PENTAGO_MODELS_DIR
 
 from gridGamesAi.pentago.gameState import PentagoGameState
-from gridGamesAi.ngo.render import PentagoRender, UserPentagoAgent
+from gridGamesAi.ngo.render import NgoRender, UserNgoAgent
 from gridGamesAi.agents import RandomAgent
 from gridGamesAi.game import Game
 from gridGamesAi.pentago.temporal_difference_model import Pentago_TD_Agent

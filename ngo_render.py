@@ -6,18 +6,20 @@ from gridGamesAi.agents import RandomAgent
 from gridGamesAi.game import Game
 from gridGamesAi.minimax import MinimaxAgent
 from gridGamesAi.paths import PENTAGO_MODELS_DIR
-from gridGamesAi.pentago.gameState import PentagoGameState
+from gridGamesAi.ngo.gameState import NgoGameRunner, NgoGameState
 from gridGamesAi.ngo.render import NgoRender, UserNgoAgent
+from gridGamesAi.ngo.scoringAgent import NgoNaiveScoringAgent
 from gridGamesAi.pentago.temporal_difference_model import Pentago_TD_Agent
 
 MOD_PATH = PENTAGO_MODELS_DIR / "alpha_model_32000"
 
 plt.ion()
-renderer = NgoRender()
-pentAgent = Pentago_TD_Agent(MOD_PATH)
+ngoRunner = NgoGameRunner(2, 4, True)
+renderer = NgoRender(ngoRunner.size_quadrant * 2)
+ngoAgent = NgoNaiveScoringAgent()
 g = Game(
-    [MinimaxAgent(pentAgent, 1), UserNgoAgent(renderer)],
-    PentagoGameState.fairVariant(),
+    [MinimaxAgent(ngoAgent, 1), UserNgoAgent(renderer)],
+    NgoGameState.fairVariant(ngoRunner),
     renderer.render
 )
 

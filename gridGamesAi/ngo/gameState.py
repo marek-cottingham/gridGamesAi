@@ -10,7 +10,7 @@ import hashlib
 import itertools
 
 from ..turnTracker import TurnTracker
-from ..common import AbstractGridGameState
+from ..common import AbstractGridGameState, SavedScoreInterface
 from ..agents import RandomAgent
 
 randAgent = RandomAgent()
@@ -85,28 +85,42 @@ class NgoGameRunner():
         rot = self.rotations[rotationKey]
         return tf.Variable( tf.tensordot(grid, rot, (2)) )
 
-    def hasWinningLine(self, grid: tf.Tensor):
-        return tf.reduce_max( tf.tensordot(grid, self.win, 2), [1] )
+    def hasWinningLine(self, grid: tf.Tensor) -> tf.Tensor:
+        return tf.equal(tf.reduce_max( tf.tensordot(grid, self.win, 2), [1] ), self.win_line_length)
 
-    def initialiseTurnTracker(self):
+    def naiveScore(self, grid: tf.Tensor) -> tf.Tensor:
+        count_on_each_winning_line = tf.reduce_max( tf.tensordot(grid, self.win, 2), [1] )
+        square_of_count = tf.square(count_on_each_winning_line)
+        change_player_1_sign = tf.tensordot(tf.constant([1,-1],dtype=tf.int32), 
+            square_of_count, 1)
+        return tf.reduce_sum(change_player_1_sign)
+
+    def initialiseTurnTracker(self) -> TurnTracker:
         if self.rotation_enabled:
             return TurnTracker(2, 2)
         else:
             return TurnTracker(2, 1)
 
     def initialiseGrid(self):
-        return tf.Variable(tf.zeros([2,self.size_board,self.size_board]))
+        return tf.Variable(tf.zeros([2,self.size_board,self.size_board],dtype=tf.int32))
 
     def place(self, grid: tf.Tensor, player: int, index: Tuple[int,int]):
         newGrid = tf.Variable(grid)
-        tf.tensor_scatter_nd_add(newGrid, [[player, index[0], index[1]]], [1])
+        newGrid = tf.tensor_scatter_nd_add(newGrid, [[player, index[0], index[1]]], [1])
         if tf.reduce_max(newGrid) == 2:
             raise Exception("Invalid placement")
         return newGrid
 
-    def nextValidPlacement(self):
-        # look into using tf.equal here: https://stackoverflow.com/questions/39219414/in-tensorflow-how-can-i-get-nonzero-values-and-their-indices-from-a-tensor-with
-        return NotImplemented
+    def nextValidPlacement(self, grid: tf.Tensor, player: int):
+        sum_axis_0 = tf.reduce_sum(grid, axis=0)
+        free_spaces = tf.where(tf.equal(sum_axis_0, 0))
+        new_grids = []
+        for i,j in free_spaces:
+            new_grids.append( self.place(grid, player, (i,j)) )
+        return new_grids
+
+    def allPositionsFilled(self, grid: tf.Tensor):
+        return tf.reduce_sum(grid) == self.size_board * self.size_board
 
 class NgoGameState(AbstractGridGameState):
     def __init__(self, turnTracker: TurnTracker, grid: tf.Tensor, gameRunner: NgoGameRunner):
@@ -120,6 +134,8 @@ class NgoGameState(AbstractGridGameState):
             grid = gameRunner.initialiseGrid()
         self.grid = grid
 
+        self.savedScores = {}
+
     @property
     def current_player(self) -> int: return self.turnTracker.current_player
     
@@ -129,18 +145,27 @@ class NgoGameState(AbstractGridGameState):
     @property
     def last_player_to_move(self) -> int: return self.turnTracker.last_player_to_move
 
+    @property
+    def grid_0(self) -> np.ndarray:
+        return self.grid[0].numpy()
+
+    @property
+    def grid_1(self) -> np.ndarray:
+        return self.grid[1].numpy()
+
     def _getNextGridStates(self):
         if self.turnTracker.current_turn_step == 0:
-            return self.gridState.nextValidPlacements(self.current_player)
+            return self.gameRunner.nextValidPlacement(self.grid, self.current_player)
         if self.turnTracker.current_turn_step == 1:
             return self._getNextRotateGridStates()
 
     def _getNextRotateGridStates(self):
-        nextGridStates = []
+        nextGrids = []
+        rotationsKeys = ["00cw","00cc","01cw","01cc","10cw","10cc","11cw","11cc"]
         for key in rotationsKeys:
-            nextGrid = _rotatePentagoGrid(self.gridState, key)
-            nextGridStates.append(nextGrid)
-        return nextGridStates
+            nextGrid = self.gameRunner.rotate(self.grid, key)
+            nextGrids.append(nextGrid)
+        return nextGrids
 
     def rotate(self, rotate_key: str) -> NgoGameState:
         return NgoGameState(
@@ -172,20 +197,19 @@ class NgoGameState(AbstractGridGameState):
     def next_moves(self) -> List[NgoGameState]:
         next_grid_states = self._getNextGridStates()
         next_turn_tracker = self.turnTracker.getIncremented()
-        return [NgoGameState(next_turn_tracker, state) for state in next_grid_states]
+        return [NgoGameState(next_turn_tracker, state, self.gameRunner) for state in next_grid_states]
 
     @cached_property
     def _winInfo(self) -> Tuple[bool, int | None]:
-        win_player_0 = _gridInWinState(self.gridState.grid_0)
-        win_player_1 = _gridInWinState(self.gridState.grid_1)
+        hasWinningLine = self.gameRunner.hasWinningLine(self.grid)
 
-        if win_player_0 and win_player_1:
+        if hasWinningLine[0] and hasWinningLine[1]:
             # If a player rotates a segment so both players achieve 5 in a row simultaneously,
             # the player who just moved *losses*
             return True, self.turnTracker.other_to_last_player_to_move 
-        if win_player_0:
+        if hasWinningLine[0]:
             return True, 0
-        if win_player_1:
+        if hasWinningLine[1]:
             return True, 1
         return False, None
 
@@ -201,7 +225,7 @@ class NgoGameState(AbstractGridGameState):
     def isDraw(self) -> bool:
         return (
             self.turn_step == 0
-            and np.sum(self.gridState.grid_0) + np.sum(self.gridState.grid_1) >= 36 
+            and self.gameRunner.allPositionsFilled(self.grid)
             and not self.isWin
         )
 
@@ -209,31 +233,23 @@ class NgoGameState(AbstractGridGameState):
     def isEnd(self) -> bool:
         return self.isDraw or self.isWin
 
-    def __hash__(self) -> int:
-        arr = self.asNumpy().view()
-        hash = hashlib.sha1(arr).hexdigest()
-        return int(hash,16)
-
     def __eq__(self, other: object) -> bool:
-        return np.all(self.asNumpy() == other.asNumpy())
-
-    def flipCenterOfMassToUpperLeftBelowDiagonal(self) -> NgoGameState:
-        return NgoGameState(
-            self.turnTracker,
-            self.gridState.flipCenterOfMassToUpperLeftBelowDiagonal()
-        )
-
-    
+        return np.all(self.grid == other.grid)
 
     @classmethod
-    def fairVariant(self) -> NgoGameState:
+    def fairVariant(self, gameRunner: NgoGameRunner = None) -> NgoGameState:
         """Under ideal play, pentago is a first player win. In order to make the
         game fairer (draw under ideal play), we can force the first player to play a
         specific move. This is a more interesting variant of the game.
 
         See: https://perfect-pentago.net/
         """
-        return NgoGameState.place((0,0)).skipRotation()
+        if gameRunner is None:
+            gameRunner = NgoGameRunner(3, 5, True)
+        if gameRunner.rotation_enabled:
+            return NgoGameState(None, None, gameRunner).place((0,0)).skipRotation()
+        else:
+            return NgoGameState(None, None, gameRunner).place((0,0))
 
     @classmethod
     def init_with_n_random_moves(self, n):

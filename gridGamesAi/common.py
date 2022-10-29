@@ -32,6 +32,10 @@ class AbstractGameState(ABC):
     @abstractproperty
     def last_player_to_move(self) -> int: pass
 
+class SavedScoreInterface(ABC):
+    @abstractproperty
+    def savedScores(self) -> dict[int, float]: pass
+
 class AbstractGridGameState(AbstractGameState):
     @abstractproperty
     def grid_0(self) -> np.ndarray: pass
