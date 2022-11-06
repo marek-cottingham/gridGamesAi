@@ -1,6 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
+import tensorflow as tf
+
 
 @dataclass
 class TurnTracker:
@@ -44,3 +46,6 @@ class TurnTracker:
         if self.number_players != 2:
             raise Exception(f"Not available for game, self.number_players = {self.number_players} != 2")
         return (self.last_player_to_move + 1) % self.number_players
+
+    def asTensor(self):
+        return tf.constant([self.current_player, self.current_turn_step], dtype=tf.int32)

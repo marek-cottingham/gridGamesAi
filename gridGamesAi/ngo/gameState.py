@@ -193,6 +193,9 @@ class NgoGameState(AbstractGridGameState):
             self.gameRunner
         )
 
+    def asSingleTensor(self) -> tf.Tensor:
+        return tf.concat([tf.reshape(self.grid, [-1]), self.turnTracker.asTensor()], axis=0)
+
     @cached_property
     def next_moves(self) -> List[NgoGameState]:
         next_grid_states = self._getNextGridStates()
@@ -252,8 +255,8 @@ class NgoGameState(AbstractGridGameState):
             return NgoGameState(None, None, gameRunner).place((0,0))
 
     @classmethod
-    def init_with_n_random_moves(self, n):
-        gs = NgoGameState.fairVariant()
+    def init_with_n_random_moves(self, n: int, runner: NgoGameRunner = None) -> NgoGameState:
+        gs = NgoGameState.fairVariant(runner)
         for _ in range(n):
             gs: NgoGameState = randAgent.move(gs)
             gs = gs.skipMove()

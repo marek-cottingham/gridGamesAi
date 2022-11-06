@@ -20,8 +20,7 @@ class OnGameStateCachingScoringAgent(AbstractScoringAgent):
     nextSerialNumber = 0
 
     def __init__(self):
-        self.serialNumber = OnGameStateCachingScoringAgent.nextSerialNumber
-        OnGameStateCachingScoringAgent.nextSerialNumber += 1
+        self.incrementSerial()
 
     def score(self, gameState: SavedScoreInterface) -> float:
         if self.serialNumber in gameState.savedScores:
@@ -30,6 +29,10 @@ class OnGameStateCachingScoringAgent(AbstractScoringAgent):
             score = self._score(gameState)
             gameState.savedScores[self.serialNumber] = score
             return score
+
+    def incrementSerial(self):
+        self.serialNumber = OnGameStateCachingScoringAgent.nextSerialNumber
+        OnGameStateCachingScoringAgent.nextSerialNumber += 1
 
     @abstractmethod
     def _score(self, gameState: AbstractGameState) -> float: pass
