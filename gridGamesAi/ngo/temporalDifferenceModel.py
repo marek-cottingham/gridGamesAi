@@ -174,6 +174,13 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
         plt.ylabel(f"Moves (rolling average) - Shaded: 10% and 90% quantiles")
         plt.show()
 
+class Ngo_TD_Agent_v1b(Ngo_TD_Agent):
+    def _modelScore(self, gameState: NgoGameState):
+        return self.td_model.__call__(
+            gameState.asSingleTensor()[None, :] * 2 - 1
+        ).numpy()[0,0]
+
+
 class TD_model(tf.keras.Model):
     def __init__(self, *args, td_factor = 0.7, **kwargs) -> None:
         super().__init__(*args, **kwargs)
