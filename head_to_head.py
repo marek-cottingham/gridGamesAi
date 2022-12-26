@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from gridGamesAi.agents import RandomAgent
 from gridGamesAi.game import Game
 from gridGamesAi.minimax import MinimaxAgent
-from gridGamesAi.paths import PENTAGO_MODELS_DIR, NGO_4_MODELS_DIR
+from gridGamesAi.paths import PENTAGO_MODELS_DIR, NGO_MODELS_DIR
 from gridGamesAi.pentago.gameState import PentagoGameState
 from gridGamesAi.ngo.gameState import NgoGameState, NgoGameRunner
 from gridGamesAi.ngo.temporalDifferenceModel import Ngo_TD_Agent
@@ -14,8 +14,8 @@ from gridGamesAi.ngo.render import NgoRender, UserNgoAgent
 from gridGamesAi.pentago.scoringAgent import PentagoNaiveScoringAgent
 from gridGamesAi.pentago.temporal_difference_model import Pentago_TD_Agent
 
-path_0 = NGO_4_MODELS_DIR / "alpha_model_8000"
-path_1 = NGO_4_MODELS_DIR / "alpha_model_64000"
+path_0 = NGO_MODELS_DIR / "alpha_model_8000"
+path_1 = NGO_MODELS_DIR / "alpha_model_64000"
 
 def _run_game(wins_0, wins_1, scoreAgent_0, scoreAgent_1):
     g = Game(

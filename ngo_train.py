@@ -3,28 +3,26 @@ import os
 import math
 from time import time
 
-from sympy import true
 from gridGamesAi.minimax import MinimaxAgent
-from gridGamesAi.paths import NGO_4_MODELS_DIR
+from gridGamesAi.paths import NGO_MODELS_DIR
 import matplotlib.pyplot as plt
 import numpy as np
 
 from gridGamesAi.ngo.gameState import NgoGameRunner, NgoGameState
-from gridGamesAi.ngo.render import NgoRender, UserNgoAgent
 from gridGamesAi.agents import RandomAgent
 from gridGamesAi.game import Game
 from gridGamesAi.ngo.temporalDifferenceModel import Ngo_TD_Agent, Ngo_TD_Agent_v1b
 
-model_dir = NGO_4_MODELS_DIR
-LOAD_MOD_PATH = model_dir / "alpha_model_64000"
-# LOAD_MOD_PATH = model_dir / "alpha_model_8000"
+model_dir = NGO_MODELS_DIR / "alpha_4x4_with_rotation"
+LOAD_MOD_PATH = model_dir / "64000"
+# LOAD_MOD_PATH = model_dir / "8000"
 # LOAD_MOD_PATH = None
 
-runner = NgoGameRunner(2, 4, true)
+runner = NgoGameRunner(2, 4, True)
 
 def update_save_path(training_calls):
     global SAVE_MOD_PATH
-    SAVE_MOD_PATH = model_dir / f"beta_model_{training_calls}"
+    SAVE_MOD_PATH = model_dir / f"{training_calls}"
 
 update_save_path(0)
 os.makedirs(SAVE_MOD_PATH.parent, exist_ok=True)
@@ -35,7 +33,6 @@ if LOAD_MOD_PATH is not None:
 else:
     mlAgent.create_td_model(runner)
 mlAgent.compile_td_model()
-randAgent = RandomAgent()
 
 # mlAgent.plot_training_total_moves()
 # first_set_layer_weights = mlAgent.td_model.layers[1].get_weights()[0]
