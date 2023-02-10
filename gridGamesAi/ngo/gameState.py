@@ -121,6 +121,8 @@ class NgoGameRunner():
         return tf.reduce_sum(grid) == self.size_board * self.size_board
 
 class NgoGameState(AbstractGridGameState):
+    rng = np.random.default_rng()
+
     def __init__(self, turnTracker: TurnTracker, grid: tf.Tensor, gameRunner: NgoGameRunner):
         self.gameRunner = gameRunner
 
@@ -257,5 +259,41 @@ class NgoGameState(AbstractGridGameState):
         gs = NgoGameState.fairVariant(runner)
         for _ in range(n):
             gs: NgoGameState = randAgent.move(gs)
-            gs = gs.skipMove()
+            if runner.rotation_enabled:
+                gs = gs.skipRotation()
         return gs
+
+    @classmethod
+    def init_as_winning_position(self, runner: NgoGameRunner, player: int = 0, extra_moves: int = 0):
+        
+        winning_line_index = self.rng.integers(runner.win.shape[-1])
+        grid_with_winning_line = runner.win[:,:,winning_line_index]
+
+        player_selector = tf.Variable(tf.zeros((2), tf.dtypes.int32))
+        player_selector[player].assign(1)
+
+        grid = tf.einsum("ab,c->cab", grid_with_winning_line, player_selector)
+        gs_with_winning_line = NgoGameState(None, grid, runner)
+
+        if gs_with_winning_line.grid[0,0,0] == 1:
+            extra_moves += 1
+
+        while True:
+            gs = gs_with_winning_line
+        
+            for _ in range(extra_moves):
+                gs = NgoGameState(TurnTracker(2,2,player,0), gs.grid, gs.gameRunner)
+                gs = randAgent.move(gs)
+
+            other_player_moves = extra_moves + gs.gameRunner.win_line_length
+            if player == 0:
+                other_player_moves -= 1
+
+            for _ in range(extra_moves+gs.gameRunner.win_line_length):
+                gs = NgoGameState(TurnTracker(2,2,(player+1)%2,0), gs.grid, gs.gameRunner)
+                gs = randAgent.move(gs)
+
+            
+            hasWinningLine = gs.gameRunner.hasWinningLine(gs.grid)
+            if hasWinningLine[player] and not hasWinningLine[(player+1)%2]:
+                return gs

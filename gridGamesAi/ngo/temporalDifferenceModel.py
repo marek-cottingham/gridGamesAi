@@ -19,7 +19,7 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
         minixmaxAgent = MinimaxAgent(None, max_depth=0),
     ) -> None:
         """ Initialize the agent. If loadPath is provided, td model 
-        will be loaded from that path. If createNewModel is True and loadPath
+        will be loaded from that path. If newModelRunner is provided and loadPath
         is None, a new model will be created. """
 
         self.incrementSerial()
@@ -185,7 +185,7 @@ class TD_model(tf.keras.Model):
     def __init__(self, *args, td_factor = 0.7, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.td_factor = td_factor
-        self.batch_size = 20
+        self.batch_size = 1
         self.batch_pending = []
 
     def train_td_from_sequential_states(self, tensor_states: List[tf.Tensor], scores: np.ndarray):
@@ -205,6 +205,7 @@ class TD_model(tf.keras.Model):
         delta_trainable = self.get_update_as_weighted_sum_gradients(deltas, gradients)
         if self.batch_size == 1:
             self.optimizer.apply_gradients(zip(delta_trainable, self.trainable_variables))
+            return
         else:
             self.batch_pending.append(delta_trainable)
 

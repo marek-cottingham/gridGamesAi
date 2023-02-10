@@ -9,53 +9,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from gridGamesAi.ngo.gameState import NgoGameRunner, NgoGameState
-from gridGamesAi.agents import RandomAgent
-from gridGamesAi.game import Game
-from gridGamesAi.ngo.temporalDifferenceModel import Ngo_TD_Agent, Ngo_TD_Agent_v1b
+from gridGamesAi.ngo.modelManager import ModelManager
 
-model_dir = NGO_MODELS_DIR / "alpha_4x4_with_rotation"
-LOAD_MOD_PATH = model_dir / "64000"
-# LOAD_MOD_PATH = model_dir / "8000"
-# LOAD_MOD_PATH = None
 
-runner = NgoGameRunner(2, 4, True)
+alpha_model_dir = NGO_MODELS_DIR / "alpha_4x4_with_rotation"
+alpha_runner = NgoGameRunner(2, 4, True)
 
-def update_save_path(training_calls):
-    global SAVE_MOD_PATH
-    SAVE_MOD_PATH = model_dir / f"{training_calls}"
+beta_model_dir = NGO_MODELS_DIR / "beta_4x4_no_rotation"
+beta_runner = NgoGameRunner(2, 4, False)
 
-update_save_path(0)
-os.makedirs(SAVE_MOD_PATH.parent, exist_ok=True)
+model = ModelManager(
+    # alpha_model_dir, alpha_runner
+    beta_model_dir, beta_runner
+)
 
-mlAgent = Ngo_TD_Agent(None, runner, MinimaxAgent(None, max_depth=0))
-if LOAD_MOD_PATH is not None:
-    mlAgent.load(LOAD_MOD_PATH, verbose=True)
-else:
-    mlAgent.create_td_model(runner)
-mlAgent.compile_td_model()
+# try:
+#     model.load_latest_model()
+# except FileNotFoundError:
+#     model.new_model()
 
-# mlAgent.plot_training_total_moves()
-# first_set_layer_weights = mlAgent.td_model.layers[1].get_weights()[0]
-# print(first_set_layer_weights.shape)
-# plt.imshow(first_set_layer_weights)
-# plt.show()
-# exit()
-mlAgent.td_model.batch_size = 1
 
-saveCallsIncrement = 8000
+# model.ml_agent.plot_training_total_moves()
+# model.train()
 
-update_save_path(math.ceil((mlAgent.training_calls)/saveCallsIncrement)*saveCallsIncrement)
-print(SAVE_MOD_PATH)
-
-start = time()
-while mlAgent.training_calls < 120000:
-    gs = NgoGameState.init_with_n_random_moves(6, runner)
-    mlAgent.train_td_from_game(gs)
-    
-    if mlAgent.training_calls % 40 == 0:
-        mlAgent.save(SAVE_MOD_PATH, True)
-        print("Time for 40 calls:", time() - start)
-        start = time()
-
-        if mlAgent.training_calls % saveCallsIncrement == 0:
-            update_save_path(mlAgent.training_calls+saveCallsIncrement)
+for _ in range(10):
+    gs = NgoGameState.init_as_winning_position(beta_runner, 1, 3)
+    print(gs.grid)
+    print(gs.winPlayer)
