@@ -24,7 +24,7 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
 
         self.incrementSerial()
         
-        self.td_model = None
+        self.td_model: TD_model = None
         self.isCompiled = False
 
         self.minimaxAgent: MinimaxAgent = minixmaxAgent
@@ -32,6 +32,7 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
 
         self.training_calls = 0
         self.trainingCall_totalMoves: List[Tuple[int, int]] = []
+        self.training_maxMoves = 0
 
         if loadPath is not None:
             self.load(loadPath)
@@ -46,7 +47,7 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
         inputs = tf.keras.Input(shape=(size,))
         internal_1 = tf.keras.layers.Dense(size, activation='relu')
         internal_2 = tf.keras.layers.Dense(size//2, activation='relu')
-        output = tf.keras.layers.Dense(1, activation='sigmoid')
+        output = tf.keras.layers.Dense(1, activation='tanh')
         self.td_model = TD_model(
             inputs, 
             output(internal_2(internal_1(inputs))), 
@@ -68,6 +69,8 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
                 obj = json.load(f)
                 self.training_calls = obj["training_calls"]
                 self.trainingCall_totalMoves = obj["trainingCall_totalMoves"]
+                if "training_maxMoves" in obj:
+                    self.training_maxMoves = obj["training_maxMoves"]
                 return True
         except FileNotFoundError:
             return False
@@ -90,7 +93,8 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
         with open(json_path, "w") as f:
             json.dump({
                 "training_calls": self.training_calls,
-                "trainingCall_totalMoves": self.trainingCall_totalMoves
+                "trainingCall_totalMoves": self.trainingCall_totalMoves,
+                "training_maxMoves": self.training_maxMoves,
             },f)
 
     def _save_td_model(self, path, overwrite_ok):
@@ -117,9 +121,9 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
             raise Exception("Must compile the TD model")
 
     def _score(self, gameState: NgoGameState) -> float:
-        return baseScoreStrategy(gameState, self._modelScore)
+        return baseScoreStrategy(gameState, self.model_score)
 
-    def _modelScore(self, gameState: NgoGameState):
+    def model_score(self, gameState: NgoGameState):
         return self.td_model.__call__(
             gameState.asSingleTensor()[None, :]
         ).numpy()[0,0]
@@ -138,13 +142,15 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
         self._update_training_record(movesSequence)
 
     def _update_training_record(self, movesSequence: List[NgoGameState]):
+        moves = int(movesSequence[-1].turnTracker.total_moves)
         self.training_calls += 1
         self.trainingCall_totalMoves.append(
             (
                 self.training_calls,
-                int(movesSequence[-1].turnTracker.total_moves), 
+                moves
             )
         )
+        self.training_maxMoves = max(self.training_maxMoves, moves)
 
     def _generate_self_play_moves_sequence(self, rootGameState):
         movesSequence: List[NgoGameState] = [rootGameState]
@@ -175,7 +181,7 @@ class Ngo_TD_Agent(OnGameStateCachingScoringAgent):
         plt.show()
 
 class Ngo_TD_Agent_v1b(Ngo_TD_Agent):
-    def _modelScore(self, gameState: NgoGameState):
+    def model_score(self, gameState: NgoGameState):
         return self.td_model.__call__(
             gameState.asSingleTensor()[None, :] * 2 - 1
         ).numpy()[0,0]

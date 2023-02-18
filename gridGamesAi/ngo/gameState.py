@@ -9,7 +9,7 @@ import itertools
 
 from ..turnTracker import TurnTracker
 from ..common import AbstractGridGameState, SavedScoreInterface
-from ..agents import RandomAgent
+from ..agents import RandomAgent, AbstractAgent
 
 randAgent = RandomAgent()
 
@@ -239,6 +239,12 @@ class NgoGameState(AbstractGridGameState):
     def __eq__(self, other: object) -> bool:
         return np.all(self.grid == other.grid)
 
+    def n_random_moves(self, n: int) -> NgoGameState:
+        gs = self
+        for _ in range(n):
+            gs = randAgent.move(gs)
+        return gs
+
     @classmethod
     def fairVariant(self, gameRunner: NgoGameRunner = None) -> NgoGameState:
         """Under ideal play, pentago is a first player win. In order to make the
@@ -255,12 +261,26 @@ class NgoGameState(AbstractGridGameState):
             return NgoGameState(None, None, gameRunner).place((0,0))
 
     @classmethod
-    def init_with_n_random_moves(self, n: int, runner: NgoGameRunner = None) -> NgoGameState:
+    def init_with_n_random_placements(self, n: int, runner: NgoGameRunner = None) -> NgoGameState:
         gs = NgoGameState.fairVariant(runner)
         for _ in range(n):
             gs: NgoGameState = randAgent.move(gs)
             if runner.rotation_enabled:
                 gs = gs.skipRotation()
+        return gs
+
+    @classmethod
+    def init_with_n_agent_and_m_random_moves(self, 
+        n: int, 
+        m: int, 
+        agent: AbstractAgent, 
+        runner: NgoGameRunner = None
+    ) -> NgoGameState:
+        gs = NgoGameState.fairVariant(runner)
+        for _ in range(n):
+            gs: NgoGameState = agent.move(gs)
+        for _ in range(m):
+            gs: NgoGameState = randAgent.move(gs)
         return gs
 
     @classmethod

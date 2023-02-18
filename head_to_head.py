@@ -20,7 +20,7 @@ path_1 = NGO_MODELS_DIR / "alpha_model_64000"
 def _run_game(wins_0, wins_1, scoreAgent_0, scoreAgent_1):
     g = Game(
         [MinimaxAgent(scoreAgent_0, 0), MinimaxAgent(scoreAgent_1, 0)],
-        NgoGameState.init_with_n_random_moves(5, NgoGameRunner(2, 4, True)),
+        NgoGameState.init_with_n_random_placements(5, NgoGameRunner(2, 4, True)),
     )
     while not g.current_game_state.isEnd:
         g.moveWithCurrentPlayer()
