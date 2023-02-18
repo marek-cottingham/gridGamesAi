@@ -16,10 +16,10 @@ from gridGamesAi.ngo.resolvedPositions import ResolvedPositions
 alpha_model_dir = NGO_MODELS_DIR / "alpha_4x4_with_rotation"
 alpha_runner = NgoGameRunner(2, 4, True)
 
-beta_model_dir = NGO_MODELS_DIR / "beta_4x4_no_rotation"
-beta_runner = NgoGameRunner(2, 4, False)
+beta_model_dir = NGO_MODELS_DIR / "beta_4x4_with_rotation"
+beta_runner = NgoGameRunner(2, 4, True)
 
-model_dir, runner = alpha_model_dir, alpha_runner
+# model_dir, runner = alpha_model_dir, alpha_runner
 model_dir, runner = beta_model_dir, beta_runner
 
 model = ModelManager(
@@ -35,6 +35,6 @@ print("Finished generating resolved positions.")
 
 for path in model.get_sorted_model_paths():
     model.current_model_path = path
-    model.load_model()
+    model.load_model(True)
     score = model.rate_against_resolved_positions(resolved_positions)
     print(score)
